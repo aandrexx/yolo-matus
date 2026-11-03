@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111714">
+    <title>Vigía | Fuego y humo</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="Vigía, inicio">
+          <span class="brand-mark" aria-hidden="true">V</span>
+          <span><strong>VIGÍA</strong><small>MONITOREO INTELIGENTE</small></span>
+        </a>
+        <div class="side-label">OPERACIÓN</div>
+        <a class="nav-link active" href="#panel"><span class="nav-icon">▦</span> Panel general</a>
+        <a class="nav-link" href="#camaras"><span class="nav-icon">◉</span> Cámaras</a>
+        <a class="nav-link" href="#alertas"><span class="nav-icon">△</span> Alertas</a>
+        <div class="sidebar-bottom">
+          <span class="live-dot"></span>
+          <span><strong>YOLO activo</strong><small>Detección de fuego y humo</small></span>
+        </div>
+      </aside>
+
+      <main id="panel" class="main-content">
+        <header class="topbar">
+          <div class="mobile-brand"><span class="brand-mark">V</span><strong>VIGÍA</strong></div>
+          <div class="breadcrumb">Monitoreo <span>/</span> <strong>Panel general</strong></div>
+          <div class="topbar-right">
+            <span id="connection-status" class="connection"><i></i> Conectando...</span>
+            <button id="refresh-button" class="icon-button" type="button" aria-label="Actualizar">↻</button>
+          </div>
+        </header>
+
+        <section class="page-heading">
+          <div>
+            <p class="eyebrow">CENTRO DE OPERACIONES</p>
+            <h1>Detección de fuego y humo</h1>
+            <p class="subtitle">Monitorea tus cámaras y revisa eventos detectados por inteligencia artificial.</p>
+          </div>
+          <button id="open-camera-form" class="button button-primary" type="button"><span>＋</span> Agregar cámara</button>
+        </section>
+
+        <section class="metrics" aria-label="Resumen">
+          <article class="metric-card">
+            <div class="metric-icon green">◉</div><div><span>Cámaras activas</span><strong id="active-cameras">—</strong></div>
+            <small id="total-cameras" class="metric-caption">de — cámaras</small>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon red">△</div><div><span>Alertas nuevas</span><strong id="new-alerts">—</strong></div>
+            <small class="metric-caption">pendientes de revisión</small>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon amber">⌁</div><div><span>En detección</span><strong id="detecting-cameras">—</strong></div>
+            <small class="metric-caption">cámaras conectadas</small>
+          </article>
+        </section>
+
+        <section id="camaras" class="section-block">
+          <div class="section-heading">
+            <div><h2>Vista de cámaras</h2><p>Fotogramas analizados en tiempo real</p></div>
+            <span id="camera-count" class="section-count">0 cámaras</span>
+          </div>
+          <div id="camera-grid" class="camera-grid">
+            <div class="empty-state">Cargando cámaras...</div>
+          </div>
+        </section>
+
+        <section id="alertas" class="section-block alerts-section">
+          <div class="section-heading">
+            <div><h2>Alertas recientes</h2><p>Eventos detectados por el modelo</p></div>
+            <a class="text-link" href="/docs" target="_blank" rel="noreferrer">Ver API <span>↗</span></a>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>EVENTO</th><th>CÁMARA</th><th>CONFIANZA</th><th>FECHA</th><th>ESTADO</th><th></th></tr></thead>
+              <tbody id="alert-list"><tr><td colspan="6" class="table-empty">Cargando alertas...</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="footer"><span>VIGÍA · Detección asistida por YOLO</span><span id="last-updated">Esperando datos</span></footer>
+      </main>
+    </div>
+
+    <dialog id="camera-dialog" class="camera-dialog">
+      <form id="camera-form">
+        <div class="dialog-heading"><div><p class="eyebrow">CONFIGURACIÓN</p><h2>Agregar cámara</h2></div><button id="close-camera-form" class="icon-button" type="button" aria-label="Cerrar">×</button></div>
+        <label>Nombre de cámara<input name="nombre" type="text" maxlength="100" placeholder="Ej. Entrada principal" required></label>
+        <label>Fuente de video<input name="url" type="text" maxlength="500" placeholder="0, rtsp://... o ruta del video" required><small>Usa 0 para la cámara web o una URL/ruta de video accesible al servidor.</small></label>
+        <div class="form-grid">
+          <label>Confianza humo<input name="conf_humo" type="number" min="0" max="1" step="0.05" value="0.3" required></label>
+          <label>Confianza fuego<input name="conf_fuego" type="number" min="0" max="1" step="0.05" value="0.3" required></label>
+        </div>
+        <p id="camera-form-error" class="form-error" role="alert"></p>
+        <div class="dialog-actions"><button id="cancel-camera-form" class="button button-secondary" type="button">Cancelar</button><button class="button button-primary" type="submit">Guardar cámara</button></div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

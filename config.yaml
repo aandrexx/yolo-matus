@@ -1,0 +1,13 @@
+modelo:
+  ruta: modelos/yolo11s.pt
+  conf: 0.3
+  imgsz: 960
+
+motor:
+  ventana: 15
+  minimo: 5
+  cierre_seg: 30   # segundos sin detecciones para cerrar un evento
+
+evidencias: evidencias
+camaras:
+  fps_proceso: 2   # fotogramas por segundo que se analizan por cámara

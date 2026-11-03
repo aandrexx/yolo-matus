@@ -1,4 +1,7 @@
 venv/
-*.mp4
+.mp4
 *.pt
 __pycache__/
+datos.db*
+evidencias/
+capturas_fp/como
