@@ -1,21 +1,22 @@
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ModeloCfg(BaseModel):
     ruta: str
-    conf: float = 0.3
-    imgsz: int = 960
+    conf: float = Field(default=0.3, ge=0, le=1)
+    imgsz: int = Field(default=960, ge=32)
+    workers: int = Field(default=4, ge=1, le=16)
 
 
 class MotorCfg(BaseModel):
-    ventana: int = 15
-    minimo: int = 5
-    cierre_seg: float = 30
+    ventana: int = Field(default=15, ge=1)
+    minimo: int = Field(default=5, ge=1)
+    cierre_seg: float = Field(default=30, gt=0)
 
 
 class CamarasCfg(BaseModel):
-    fps_proceso: float = 2
+    fps_proceso: float = Field(default=2, gt=0, le=30)
 
 
 class Config(BaseModel):

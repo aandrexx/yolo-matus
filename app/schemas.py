@@ -69,4 +69,14 @@ class EstadoCamaraSalida(BaseModel):
     estado: EstadoCamara
     ultima_actualizacion: Optional[datetime] = None
     ultimo_error: Optional[str] = None
-    fotogramas_procesados: int = 0   
+    fotogramas_procesados: int = 0
+
+
+class AlertaReciente(AlertaSalida):
+    camara_nombre: str
+
+
+class ResumenMonitoreo(BaseModel):
+    camaras: dict[str, int]
+    alertas: dict[str, int]
+    ultimas_alertas: list[AlertaReciente]

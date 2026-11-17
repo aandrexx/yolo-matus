@@ -35,6 +35,16 @@ class CamaraCfg:
     conf_fuego: float
 
 
+def filtrar_detecciones_objetivo(detecciones, conf_humo: float, conf_fuego: float):
+    umbrales = {"smoke": conf_humo, "fire": conf_fuego}
+    return [
+        deteccion
+        for deteccion in detecciones
+        if deteccion.clase.strip().casefold() in umbrales
+        and deteccion.confianza >= umbrales[deteccion.clase.strip().casefold()]
+    ]
+
+
 class LectorCamara(threading.Thread):
     def __init__(self, cfg: CamaraCfg, detector: Detector, servicio: AlertaService,
                  ventana: int, minimo: int, cierre_seg: float,
@@ -136,9 +146,12 @@ class LectorCamara(threading.Thread):
         c = self.cfg
         try:
             # el modelo corre con el umbral más bajo y luego se filtra por clase
-            dets = self.detector.detectar(frame, conf=min(c.conf_humo, c.conf_fuego))
-            dets = [d for d in dets
-                    if d.confianza >= (c.conf_humo if d.clase == "smoke" else c.conf_fuego)]
+            dets = self.detector.detectar(
+                frame,
+                conf=min(c.conf_humo, c.conf_fuego),
+                cancelar=self._parar,
+            )
+            dets = filtrar_detecciones_objetivo(dets, c.conf_humo, c.conf_fuego)
 
             if self.motor.evaluar(dets, t):
                 self.servicio.registrar(c.id, frame, dets)

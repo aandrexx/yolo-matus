@@ -1,6 +1,8 @@
 venv/
-.mp4
+.venv/
+videos/*.mp4
 *.pt
+!modelos/best.pt
 __pycache__/
 datos.db*
 evidencias/
