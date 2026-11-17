@@ -12,3 +12,4 @@ motor:
 evidencias: evidencias
 camaras:
   fps_proceso: 2   # fotogramas por segundo que se analizan por cámara
+  fps_vista: 30    # máximo de fotogramas por segundo para cámaras en vivo

@@ -65,7 +65,7 @@
 
         <section id="camaras" class="section-block">
           <div class="section-heading">
-            <div><h2>Vista de cámaras</h2><p>Fotogramas analizados y estado de cada fuente</p></div>
+            <div><h2>Vista de cámaras</h2><p>Video en vivo y estado de cada fuente</p></div>
             <span id="camera-count" class="section-count">0 cámaras</span>
           </div>
           <div class="camera-toolbar">
@@ -110,7 +110,7 @@
       <form id="camera-form">
         <div class="dialog-heading"><div><p class="eyebrow">CONFIGURACIÓN</p><h2>Agregar cámara</h2></div><button id="close-camera-form" class="icon-button" type="button" aria-label="Cerrar">×</button></div>
         <label>Nombre de cámara<input name="nombre" type="text" maxlength="100" placeholder="Ej. Entrada principal" required></label>
-        <label>Fuente de video<input name="url" type="text" maxlength="500" placeholder="0, rtsp://... o ruta del video" required><small>Usa 0 para la cámara web o una URL/ruta de video accesible al servidor.</small></label>
+        <label>Fuente de video<input name="url" type="text" maxlength="500" placeholder="0, rtsp://... o ruta del video" required><small>Usa 0 para la webcam, una URL para una fuente en vivo o una ruta local. Los archivos se leen en el backend y se transmiten junto con sus detecciones.</small></label>
         <div class="form-grid">
           <label>Confianza humo<input name="conf_humo" type="number" min="0" max="1" step="0.05" value="0.3" required></label>
           <label>Confianza fuego<input name="conf_fuego" type="number" min="0" max="1" step="0.05" value="0.3" required></label>

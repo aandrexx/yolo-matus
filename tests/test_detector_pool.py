@@ -47,11 +47,23 @@ class FakeYOLO:
         return [FakeResult()]
 
 
+class BlockingYOLO(FakeYOLO):
+    started = threading.Event()
+    release = threading.Event()
+
+    def predict(self, frame, conf=None, imgsz=None, verbose=False):
+        BlockingYOLO.started.set()
+        BlockingYOLO.release.wait(timeout=2)
+        return [FakeResult()]
+
+
 class DetectorPoolTests(unittest.TestCase):
     def setUp(self):
         FakeYOLO.created.clear()
         FakeYOLO.active = 0
         FakeYOLO.max_active = 0
+        BlockingYOLO.started.clear()
+        BlockingYOLO.release.clear()
 
     def test_detector_creates_pool_and_detects(self):
         with patch.object(detector_module, "YOLO", FakeYOLO):
@@ -94,6 +106,18 @@ class DetectorPoolTests(unittest.TestCase):
 
         self.assertEqual(detecciones, [])
         self.assertEqual(FakeYOLO.created[0].predict_calls, 0)
+
+    def test_async_inference_does_not_queue_when_all_workers_are_busy(self):
+        with patch.object(detector_module, "YOLO", BlockingYOLO):
+            detector = detector_module.Detector("fake-model.pt", workers=1)
+            frame = np.zeros((64, 64, 3), dtype=np.uint8)
+            future = detector.detectar_async(frame)
+            self.assertTrue(BlockingYOLO.started.wait(timeout=1))
+            second = detector.detectar_async(frame)
+            self.assertIsNone(second)
+            BlockingYOLO.release.set()
+            self.assertEqual(future.result(timeout=1)[0].clase, "smoke")
+            detector.cerrar()
 
 
 if __name__ == "__main__":

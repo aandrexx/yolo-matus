@@ -13,7 +13,8 @@ fotogramas y estados, y revisar las alertas guardadas.
   las clases `fire` y `smoke`; asegúrate de incluirlo al publicar el repo.
 
 El rendimiento depende del hardware, la resolución y la cantidad de cámaras.
-El valor inicial procesa hasta 2 fotogramas por segundo por cámara y usa un
+La vista en vivo se actualiza hasta 30 fotogramas por segundo; la detección
+YOLO procesa inicialmente hasta 2 fotogramas por segundo por cámara y usa un
 pool de 4 instancias YOLO. Aumentar `workers` consume más memoria; mide el
 rendimiento con tu equipo antes de conectar muchas cámaras.
 
@@ -56,6 +57,7 @@ motor:
 evidencias: evidencias
 camaras:
   fps_proceso: 2
+  fps_vista: 30
 ```
 
 - `modelo.ruta`: ruta al checkpoint YOLO, relativa a la raíz del repositorio.
@@ -66,6 +68,9 @@ camaras:
 - `modelo.workers`: cantidad de instancias del modelo que pueden inferir en
   paralelo. Cada instancia requiere memoria adicional.
 - `camaras.fps_proceso`: máximo de fotogramas analizados por segundo y cámara.
+- `camaras.fps_vista`: máximo de fotogramas por segundo capturados para las
+  cámaras en vivo. La vista es independiente de la frecuencia de inferencia;
+  las cajas de detección se actualizan cuando YOLO termina cada análisis.
 - `motor.ventana` y `motor.minimo`: una alerta inicia cuando se detecta fuego
   o humo en al menos `minimo` de las últimas `ventana` lecturas.
 - `motor.cierre_seg`: segundos sin detecciones para cerrar el evento y permitir
@@ -86,8 +91,17 @@ Reinicia el backend después de cambiar esta configuración.
 4. Usa **Pausar/Activar** para detener o iniciar la lectura, y **Eliminar** para
    borrar la cámara y sus registros de alertas asociados.
 
-Las tarjetas muestran el fotograma más reciente, el estado de conexión y las
-detecciones actuales. La lista de alertas muestra eventos, no cada fotograma:
+El panel transmite archivos, cámaras web y fuentes IP por WebRTC usando la
+misma captura que analiza YOLO, para que las cajas no queden desfasadas respecto
+al video. Los archivos pasan por la misma codificación que las cámaras en vivo
+y pueden consumir más CPU que la reproducción nativa del navegador. En el mismo
+equipo no se requiere configuración adicional. Para abrir el panel desde otro
+equipo, la red y el firewall deben permitir el tráfico UDP de WebRTC; el acceso
+a través de NAT puede requerir configurar STUN/TURN.
+Para clientes externos que necesiten reproducción nativa, se conserva el
+endpoint `GET /camaras/{id}/video`; este no lo utiliza el panel.
+
+La lista de alertas muestra eventos, no cada fotograma:
 se registra una alerta al inicio de un evento sostenido. Actualmente fuego y
 humo comparten el ciclo de evento por cámara; la alerta se etiqueta con la
 detección de mayor confianza en el fotograma que inicia ese evento.
@@ -102,6 +116,11 @@ detección de mayor confianza en el fotograma que inicia ese evento.
 | `GET` | `/camaras/estado` | Consulta el estado de todas las cámaras. |
 | `GET` | `/camaras/{id}/estado` | Consulta el estado de una cámara. |
 | `GET` | `/camaras/{id}/ultimo-frame` | Obtiene el fotograma JPEG más reciente. |
+| `GET` | `/camaras/{id}/stream` | Mantiene compatibilidad con clientes MJPEG anteriores. |
+| `GET` | `/camaras/{id}/video` | Sirve un archivo local para reproducción nativa. |
+| `GET` | `/camaras/{id}/detecciones` | Devuelve las detecciones actuales para la capa visual. |
+| `POST` | `/camaras/{id}/webrtc` | Negocia una transmisión WebRTC. |
+| `DELETE` | `/camaras/{id}/webrtc/{sesion}` | Cierra una transmisión WebRTC. |
 | `GET` | `/alertas` | Lista alertas; acepta `estado`, `camara_id`, `limit` y `offset`. |
 | `GET`, `PATCH` | `/alertas/{id}` | Consulta o revisa una alerta. |
 | `GET` | `/alertas/{id}/imagen` | Obtiene la evidencia JPEG de una alerta. |
@@ -119,7 +138,8 @@ Desde la raíz del proyecto:
 ```
 
 Las pruebas cubren el pool de inferencia, el filtrado de clases de fuego/humo,
-el resumen de monitoreo y la eliminación de cámaras.
+la reproducción nativa con solicitudes de rango, la negociación WebRTC, el
+resumen de monitoreo y la eliminación de cámaras.
 
 ## Datos locales y despliegue
 

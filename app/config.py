@@ -17,6 +17,7 @@ class MotorCfg(BaseModel):
 
 class CamarasCfg(BaseModel):
     fps_proceso: float = Field(default=2, gt=0, le=30)
+    fps_vista: float = Field(default=30, gt=0, le=30)
 
 
 class Config(BaseModel):
