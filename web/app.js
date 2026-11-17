@@ -8,7 +8,8 @@ const cameraFilter = document.querySelector("#camera-filter");
 const toast = document.querySelector("#toast");
 
 const cameraStates = new Map();
-const frameTimers = new Map();
+const mediaConnections = new Map();
+const detectionTimers = new Map();
 let cameras = [];
 let cameraRenderKey = null;
 let refreshInProgress = false;
@@ -25,16 +26,15 @@ const stateLabels = {
 const frameObserver = "IntersectionObserver" in window
   ? new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
-      const image = entry.target.querySelector("img[data-camera-id]");
-      if (!image) return;
+      const preview = entry.target;
+      const video = preview.querySelector("video[data-camera-id]");
+      if (!video) return;
       if (entry.isIntersecting) {
-        if (!frameTimers.has(image)) {
-          refreshFrame(image);
-          frameTimers.set(image, setInterval(() => refreshFrame(image), 3500));
-        }
+        preview.dataset.inView = "true";
+        startStream(video);
       } else {
-        clearInterval(frameTimers.get(image));
-        frameTimers.delete(image);
+        preview.dataset.inView = "false";
+        stopStream(video);
       }
     });
   }, { rootMargin: "100px" })
@@ -117,14 +117,152 @@ function matchesCameraFilter(camera) {
 
 function resetFrameObservers() {
   if (frameObserver) frameObserver.disconnect();
-  for (const timer of frameTimers.values()) clearInterval(timer);
-  frameTimers.clear();
+  cameraGrid.querySelectorAll(".camera-preview video[data-camera-id]").forEach(stopStream);
 }
 
-function refreshFrame(image) {
-  const camera = cameras.find((item) => item.id === Number(image.dataset.cameraId));
+function waitForIceGathering(peer) {
+  if (peer.iceGatheringState === "complete") return Promise.resolve();
+  return new Promise((resolve) => {
+    const onStateChange = () => {
+      if (peer.iceGatheringState === "complete") {
+        peer.removeEventListener("icegatheringstatechange", onStateChange);
+        resolve();
+      }
+    };
+    peer.addEventListener("icegatheringstatechange", onStateChange);
+  });
+}
+
+function startStream(video) {
+  const camera = cameras.find((item) => item.id === Number(video.dataset.cameraId));
   if (!camera?.activa) return;
-  image.src = `/camaras/${camera.id}/ultimo-frame?t=${Date.now()}`;
+  if (video.dataset.streaming === "true" && video.dataset.source === camera.url) return;
+  stopStream(video);
+
+  video.dataset.streaming = "true";
+  video.dataset.source = camera.url;
+  video.dataset.receivedFrame = "false";
+  video.hidden = false;
+  const placeholder = video.closest(".camera-preview").querySelector(".preview-placeholder");
+  placeholder.hidden = false;
+  placeholder.textContent = "Conectando con la fuente...";
+
+  connectWebRTC(video, camera).catch((error) => {
+    console.error("No se pudo iniciar WebRTC:", error);
+    if (video.dataset.streaming === "true") {
+      stopStream(video);
+      placeholder.hidden = false;
+      placeholder.textContent = "No se pudo conectar con la fuente";
+    }
+  });
+}
+
+async function connectWebRTC(video, camera) {
+  const peer = new RTCPeerConnection();
+  const connection = { peer, sessionId: null, cameraId: camera.id };
+  mediaConnections.set(video, connection);
+
+  peer.addTransceiver("video", { direction: "recvonly" });
+  peer.addEventListener("track", (event) => {
+    video.srcObject = event.streams[0] ?? new MediaStream([event.track]);
+    video.play().catch((error) => console.error("No se pudo reproducir WebRTC:", error));
+  });
+
+  const offer = await peer.createOffer();
+  await peer.setLocalDescription(offer);
+  await waitForIceGathering(peer);
+  const answer = await api(`/camaras/${camera.id}/webrtc`, {
+    method: "POST",
+    body: JSON.stringify(peer.localDescription),
+  });
+
+  if (video.dataset.streaming !== "true" || mediaConnections.get(video) !== connection) {
+    await api(`/camaras/${camera.id}/webrtc/${answer.session_id}`, { method: "DELETE" });
+    peer.close();
+    return;
+  }
+
+  connection.sessionId = answer.session_id;
+  await peer.setRemoteDescription({ type: answer.type, sdp: answer.sdp });
+  startDetectionPolling(video);
+}
+
+function startDetectionPolling(video) {
+  if (detectionTimers.has(video)) return;
+  const update = async () => {
+    if (video.dataset.streaming !== "true") return;
+    try {
+      const data = await api(`/camaras/${video.dataset.cameraId}/detecciones`);
+      drawDetections(video, data);
+    } catch (error) {
+      console.error("No se pudieron actualizar las detecciones:", error);
+    }
+  };
+  update();
+  detectionTimers.set(video, setInterval(update, 250));
+}
+
+function drawDetections(video, data) {
+  const canvas = video.closest(".camera-preview").querySelector("canvas");
+  if (!video.videoWidth || !video.videoHeight) return;
+  if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  }
+
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  const sourceWidth = data.ancho || canvas.width;
+  const sourceHeight = data.alto || canvas.height;
+  const scaleX = canvas.width / sourceWidth;
+  const scaleY = canvas.height / sourceHeight;
+  for (const detection of data.detecciones ?? []) {
+    const [x1, y1, x2, y2] = detection.caja.map((value) => Number(value));
+    const left = x1 * scaleX;
+    const top = y1 * scaleY;
+    const width = (x2 - x1) * scaleX;
+    const height = (y2 - y1) * scaleY;
+    const color = detection.clase.toLowerCase() === "fire" ? "#ff8277" : "#9ee2ad";
+    context.strokeStyle = color;
+    context.lineWidth = Math.max(2, canvas.width / 400);
+    context.strokeRect(left, top, width, height);
+    context.font = `${Math.max(14, canvas.width / 60)}px Segoe UI`;
+    context.fillStyle = color;
+    context.fillText(
+      `${detection.clase} ${Math.round(detection.confianza * 100)}%`,
+      left,
+      Math.max(top - 6, 16),
+    );
+  }
+}
+
+function stopStream(video) {
+  const connection = mediaConnections.get(video);
+  if (video.dataset.streaming !== "true" && !connection) return;
+  video.dataset.streaming = "false";
+  video.dataset.receivedFrame = "false";
+  const timer = detectionTimers.get(video);
+  if (timer) clearInterval(timer);
+  detectionTimers.delete(video);
+
+  if (connection) {
+    connection.peer.close();
+    mediaConnections.delete(video);
+    if (connection.sessionId) {
+      api(`/camaras/${connection.cameraId}/webrtc/${connection.sessionId}`, {
+        method: "DELETE",
+      }).catch((error) => console.error("No se pudo cerrar WebRTC:", error));
+    }
+  }
+  video.pause();
+  video.srcObject = null;
+  video.removeAttribute("src");
+  video.load();
+  video.hidden = true;
+  const canvas = video.closest(".camera-preview").querySelector("canvas");
+  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+  const placeholder = video.closest(".camera-preview").querySelector(".preview-placeholder");
+  placeholder.hidden = false;
 }
 
 function renderCameraCards() {
@@ -149,7 +287,9 @@ function renderCameraCards() {
     cameraGrid.innerHTML = visibleCameras.map((camera) => `
       <article class="camera-card" data-camera-id="${camera.id}">
         <div class="camera-preview">
-          <img data-camera-id="${camera.id}" alt="Fotograma de ${escapeHtml(camera.nombre)}" hidden>
+          <video data-camera-id="${camera.id}" aria-label="Video de ${escapeHtml(camera.nombre)}"
+            autoplay muted playsinline loop hidden></video>
+          <canvas aria-hidden="true"></canvas>
           <span class="preview-placeholder">Esperando fotogramas</span>
           <div class="camera-overlay">
             <span class="camera-label">${escapeHtml(camera.nombre)}</span>
@@ -172,9 +312,12 @@ function renderCameraCards() {
     `).join("");
 
     cameraGrid.querySelectorAll(".camera-preview").forEach((preview) => {
-      const image = preview.querySelector("img[data-camera-id]");
+      const video = preview.querySelector("video[data-camera-id]");
       if (frameObserver) frameObserver.observe(preview);
-      else refreshFrame(image);
+      else {
+        preview.dataset.inView = "true";
+        startStream(video);
+      }
     });
   }
 
@@ -187,7 +330,7 @@ function updateCameraCard(camera) {
 
   const state = cameraStates.get(camera.id);
   const status = state?.estado ?? (camera.activa ? "conectando" : "inactiva");
-  const image = card.querySelector("img");
+  const video = card.querySelector("video");
   const placeholder = card.querySelector(".preview-placeholder");
   const statusPill = card.querySelector(".status-pill");
   const toggle = card.querySelector(".camera-toggle");
@@ -203,18 +346,27 @@ function updateCameraCard(camera) {
         ? "Cámara pausada"
         : "Esperando primer fotograma";
 
-  image.alt = `Fotograma de ${camera.nombre}`;
   if (!camera.activa) {
-    image.hidden = true;
+    stopStream(video);
+    video.hidden = true;
     placeholder.hidden = false;
     placeholder.textContent = "Cámara pausada";
-  } else if (status === "sin_conexion") {
-    image.hidden = true;
-    placeholder.hidden = false;
-    placeholder.textContent = "Sin conexión con la cámara";
-  } else if (!image.src || image.hidden) {
-    placeholder.hidden = false;
-    placeholder.textContent = status === "conectando" ? "Conectando con la cámara..." : "Esperando fotogramas";
+  } else {
+    if (video.dataset.source !== camera.url) stopStream(video);
+    if (card.querySelector(".camera-preview").dataset.inView === "true") {
+      startStream(video);
+    }
+    if (video.dataset.receivedFrame === "true") {
+      placeholder.hidden = true;
+    } else {
+      video.hidden = true;
+      placeholder.hidden = false;
+      placeholder.textContent = status === "sin_conexion"
+        ? "Sin conexión con la cámara"
+        : status === "conectando"
+          ? "Conectando con la cámara..."
+          : "Esperando video";
+    }
   }
 
   toggle.textContent = camera.activa ? "Pausar" : "Activar";
@@ -391,19 +543,22 @@ cameraGrid.addEventListener("click", async (event) => {
   }
 });
 
-cameraGrid.addEventListener("load", (event) => {
-  if (!(event.target instanceof HTMLImageElement)) return;
+cameraGrid.addEventListener("loadeddata", (event) => {
+  if (!(event.target instanceof HTMLVideoElement)) return;
+  event.target.dataset.receivedFrame = "true";
   event.target.hidden = false;
   const placeholder = event.target.closest(".camera-preview").querySelector(".preview-placeholder");
   placeholder.hidden = true;
 }, true);
 
 cameraGrid.addEventListener("error", (event) => {
-  if (!(event.target instanceof HTMLImageElement)) return;
-  event.target.hidden = true;
-  const placeholder = event.target.closest(".camera-preview").querySelector(".preview-placeholder");
+  if (!(event.target instanceof HTMLVideoElement)) return;
+  const video = event.target;
+  stopStream(video);
+  video.hidden = true;
+  const placeholder = video.closest(".camera-preview").querySelector(".preview-placeholder");
   placeholder.hidden = false;
-  placeholder.textContent = "Fotograma no disponible";
+  placeholder.textContent = "Video no disponible";
 }, true);
 
 alertList.addEventListener("click", async (event) => {

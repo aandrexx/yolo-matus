@@ -1,15 +1,22 @@
+import asyncio
+import mimetypes
+from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
+from aiortc import RTCPeerConnection, RTCSessionDescription
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.gestor_camaras import GestorCamaras
 from app.core.lector_camara import EstadoCamara
+from app.core.webrtc import CamaraVideoTrack
 from app.db import get_db
 from app.models import Camara
 from app.schemas import (CamaraActualizar, CamaraCrear, CamaraSalida,
-                         EstadoCamaraSalida)
+                         EstadoCamaraSalida, OfertaWebRTC)
 
 router = APIRouter(prefix="/camaras", tags=["Cámaras"])
 
@@ -73,6 +80,21 @@ def obtener(camara_id: int, db: DB):
     return _obtener(db, camara_id)
 
 
+@router.get("/{camara_id}/video")
+def video_archivo(camara_id: int, db: DB):
+    camara = _obtener(db, camara_id)
+    if camara.url.isdigit() or "://" in camara.url:
+        raise HTTPException(415, "La fuente no es un archivo de video local")
+
+    ruta = Path(camara.url).expanduser().resolve()
+    if not ruta.is_file():
+        raise HTTPException(404, "No se encontró el archivo de video")
+    tipo, _ = mimetypes.guess_type(ruta.name)
+    if tipo is None or not tipo.startswith("video/"):
+        raise HTTPException(415, "El archivo no tiene un formato de video reconocido")
+    return FileResponse(ruta, media_type=tipo)
+
+
 @router.patch("/{camara_id}", response_model=CamaraSalida)
 def actualizar(camara_id: int, datos: CamaraActualizar, db: DB, gestor: Gestor):
     camara = _obtener(db, camara_id)
@@ -113,3 +135,86 @@ def ultimo_frame(camara_id: int, db: DB, gestor: Gestor):
         raise HTTPException(404, "Todavía no hay fotogramas de esta cámara")
     return Response(content=jpg, media_type="image/jpeg",
                     headers={"Cache-Control": "no-store"})
+
+
+@router.get("/{camara_id}/detecciones")
+def detecciones(camara_id: int, db: DB, gestor: Gestor):
+    _obtener(db, camara_id)
+    return gestor.detecciones(camara_id)
+
+
+@router.post("/{camara_id}/webrtc")
+async def crear_sesion_webrtc(
+    camara_id: int, oferta: OfertaWebRTC, request: Request, db: DB,
+    gestor: Gestor,
+):
+    camara = _obtener(db, camara_id)
+    if not camara.activa:
+        raise HTTPException(409, "La cámara está pausada")
+
+    conexiones = request.app.state.webrtc_connections
+    session_id = uuid4().hex
+    pc = RTCPeerConnection()
+    conexiones[session_id] = pc
+    pc.addTrack(CamaraVideoTrack(gestor, camara_id))
+
+    @pc.on("connectionstatechange")
+    async def limpiar_conexion():
+        if pc.connectionState == "failed":
+            conexiones.pop(session_id, None)
+            await pc.close()
+        elif pc.connectionState == "closed":
+            conexiones.pop(session_id, None)
+
+    try:
+        await pc.setRemoteDescription(
+            RTCSessionDescription(sdp=oferta.sdp, type=oferta.type)
+        )
+        respuesta = await pc.createAnswer()
+        await pc.setLocalDescription(respuesta)
+    except Exception:
+        conexiones.pop(session_id, None)
+        await pc.close()
+        raise
+
+    return {
+        "session_id": session_id,
+        "sdp": pc.localDescription.sdp,
+        "type": pc.localDescription.type,
+    }
+
+
+@router.delete("/{camara_id}/webrtc/{session_id}", status_code=204)
+async def cerrar_sesion_webrtc(
+    camara_id: int, session_id: str, request: Request, db: DB,
+):
+    _obtener(db, camara_id)
+    pc = request.app.state.webrtc_connections.pop(session_id, None)
+    if pc is not None:
+        await pc.close()
+    return Response(status_code=204)
+
+
+@router.get("/{camara_id}/stream")
+async def stream(camara_id: int, request: Request, db: DB, gestor: Gestor):
+    _obtener(db, camara_id)
+
+    async def fotogramas():
+        ultima_version = -1
+        while not await request.is_disconnected():
+            jpg, version = gestor.fotograma(camara_id)
+            if jpg is not None and version != ultima_version:
+                ultima_version = version
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n"
+                    b"Content-Length: " + str(len(jpg)).encode("ascii") + b"\r\n\r\n"
+                    + jpg + b"\r\n"
+                )
+            await asyncio.sleep(1 / 30)
+
+    return StreamingResponse(
+        fotogramas(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )

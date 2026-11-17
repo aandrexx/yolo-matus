@@ -14,8 +14,9 @@ class GestorCamaras:
     """Mantiene un LectorCamara por cada cámara activa."""
 
     def __init__(self, detector: Detector, servicio: AlertaService,
-                 ventana: int, minimo: int, cierre_seg: float, fps_proceso: float):
-        self._args = (detector, servicio, ventana, minimo, cierre_seg, fps_proceso)
+                 ventana: int, minimo: int, cierre_seg: float, fps_proceso: float,
+                 fps_vista: float = 30):
+        self._args = (detector, servicio, ventana, minimo, cierre_seg, fps_proceso, fps_vista)
         self._lectores: dict[int, LectorCamara] = {}
         self._lock = threading.Lock()
 
@@ -45,6 +46,20 @@ class GestorCamaras:
     def ultimo_frame(self, camara_id: int) -> Optional[bytes]:
         lector = self._lectores.get(camara_id)
         return lector.ultimo_frame() if lector else None
+
+    def fotograma(self, camara_id: int) -> tuple[Optional[bytes], int]:
+        lector = self._lectores.get(camara_id)
+        return lector.fotograma() if lector else (None, 0)
+
+    def frame_bgr(self, camara_id: int):
+        lector = self._lectores.get(camara_id)
+        return lector.frame_bgr() if lector else (None, 0)
+
+    def detecciones(self, camara_id: int) -> dict:
+        lector = self._lectores.get(camara_id)
+        return lector.detecciones() if lector else {
+            "ancho": 0, "alto": 0, "detecciones": [],
+        }
 
     def detener_todas(self):
         with self._lock:

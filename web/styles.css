@@ -79,6 +79,8 @@ h1 { margin-bottom: 7px; font-size: clamp(22px, 2.4vw, 29px); letter-spacing: -.
 .camera-card { overflow: hidden; border: 1px solid var(--border); border-radius: 11px; background: var(--panel); }
 .camera-preview { position: relative; display: grid; aspect-ratio: 16 / 9; overflow: hidden; place-items: center; background: #0c100e; }
 .camera-preview img { width: 100%; height: 100%; object-fit: cover; }
+.camera-preview video { width: 100%; height: 100%; object-fit: contain; }
+.camera-preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .preview-placeholder { position: absolute; color: #606d64; font-size: 12px; }
 .camera-overlay { position: absolute; inset: 10px 10px auto; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
 .camera-label { max-width: 65%; overflow: hidden; padding: 5px 8px; border: 1px solid #ffffff20; border-radius: 6px; background: #0d120fbd; color: #fff; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }

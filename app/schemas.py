@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from app.core.lector_camara import EstadoCamara
 
@@ -23,6 +23,11 @@ class CamaraActualizar(BaseModel):
     activa: Optional[bool] = None
     conf_humo: Optional[float] = Field(None, ge=0, le=1)
     conf_fuego: Optional[float] = Field(None, ge=0, le=1)
+
+
+class OfertaWebRTC(BaseModel):
+    sdp: str
+    type: Literal["offer"]
 
 
 class CamaraSalida(BaseModel):

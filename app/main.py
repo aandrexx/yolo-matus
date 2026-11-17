@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -45,12 +46,19 @@ async def lifespan(app: FastAPI):
     gestor = GestorCamaras(
         detector, servicio,
         config.motor.ventana, config.motor.minimo, config.motor.cierre_seg,
-        config.camaras.fps_proceso,
+        config.camaras.fps_proceso, config.camaras.fps_vista,
     )
     app.state.gestor = gestor
+    app.state.webrtc_connections = {}
     gestor.iniciar_activas()
     yield
     gestor.detener_todas()
+    await asyncio.gather(
+        *(pc.close() for pc in app.state.webrtc_connections.values()),
+        return_exceptions=True,
+    )
+    app.state.webrtc_connections.clear()
+    detector.cerrar()
 
 
 app = FastAPI(title="Detección de fuego y humo", version="0.5.0", lifespan=lifespan)

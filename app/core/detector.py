@@ -1,4 +1,6 @@
 import os
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from queue import Empty, Queue
 from threading import Event
@@ -31,6 +33,31 @@ class Detector:
         self._modelos_disponibles = Queue(maxsize=self.workers)
         for modelo in self._modelos:
             self._modelos_disponibles.put(modelo)
+        self._executor = ThreadPoolExecutor(
+            max_workers=self.workers,
+            thread_name_prefix="yolo",
+        )
+        self._inferencias_disponibles = threading.BoundedSemaphore(self.workers)
+
+    def detectar_async(self, frame, conf: Optional[float] = None,
+                       cancelar: Optional[Event] = None) -> Optional[Future[list[Deteccion]]]:
+        if not self._inferencias_disponibles.acquire(blocking=False):
+            return None
+        try:
+            future = self._executor.submit(
+                self.detectar,
+                frame.copy(),
+                conf,
+                cancelar,
+            )
+        except Exception:
+            self._inferencias_disponibles.release()
+            raise
+        future.add_done_callback(lambda _: self._inferencias_disponibles.release())
+        return future
+
+    def cerrar(self):
+        self._executor.shutdown(wait=True, cancel_futures=True)
 
     def detectar(self, frame, conf: Optional[float] = None,
                  cancelar: Optional[Event] = None) -> list[Deteccion]:
