@@ -34,6 +34,10 @@ class GestorCamaras:
         if camara.activa:
             self._arrancar(self._cfg(camara))
 
+    def eliminar(self, camara_id: int):
+        """Detiene el lector antes de eliminar la cámara de la base de datos."""
+        self._detener(camara_id)
+
     def estado(self, camara_id: int) -> Optional[dict]:
         lector = self._lectores.get(camara_id)
         return lector.estado() if lector else None

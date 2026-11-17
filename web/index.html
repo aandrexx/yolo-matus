@@ -20,8 +20,8 @@
         <a class="nav-link" href="#camaras"><span class="nav-icon">◉</span> Cámaras</a>
         <a class="nav-link" href="#alertas"><span class="nav-icon">△</span> Alertas</a>
         <div class="sidebar-bottom">
-          <span class="live-dot"></span>
-          <span><strong>YOLO activo</strong><small>Detección de fuego y humo</small></span>
+          <span id="system-health-dot" class="live-dot"></span>
+          <span><strong id="system-health-label">Conectando backend</strong><small id="system-health-detail">Comprobando monitoreo</small></span>
         </div>
       </aside>
 
@@ -44,7 +44,7 @@
           <button id="open-camera-form" class="button button-primary" type="button"><span>＋</span> Agregar cámara</button>
         </section>
 
-        <section class="metrics" aria-label="Resumen">
+        <section class="metrics" aria-label="Resumen de monitoreo">
           <article class="metric-card">
             <div class="metric-icon green">◉</div><div><span>Cámaras activas</span><strong id="active-cameras">—</strong></div>
             <small id="total-cameras" class="metric-caption">de — cámaras</small>
@@ -55,14 +55,34 @@
           </article>
           <article class="metric-card">
             <div class="metric-icon amber">⌁</div><div><span>En detección</span><strong id="detecting-cameras">—</strong></div>
-            <small class="metric-caption">cámaras conectadas</small>
+            <small class="metric-caption">con evento activo</small>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon muted">⌁</div><div><span>Sin conexión</span><strong id="offline-cameras">—</strong></div>
+            <small class="metric-caption">requieren revisión</small>
           </article>
         </section>
 
         <section id="camaras" class="section-block">
           <div class="section-heading">
-            <div><h2>Vista de cámaras</h2><p>Fotogramas analizados en tiempo real</p></div>
+            <div><h2>Vista de cámaras</h2><p>Fotogramas analizados y estado de cada fuente</p></div>
             <span id="camera-count" class="section-count">0 cámaras</span>
+          </div>
+          <div class="camera-toolbar">
+            <label class="search-field">
+              <span aria-hidden="true">⌕</span>
+              <input id="camera-search" type="search" placeholder="Buscar cámara..." autocomplete="off" aria-label="Buscar cámara por nombre">
+            </label>
+            <label class="filter-field">
+              <span>Estado</span>
+              <select id="camera-filter" aria-label="Filtrar cámaras por estado">
+                <option value="todas">Todas</option>
+                <option value="activas">Activas</option>
+                <option value="alerta">En alerta</option>
+                <option value="sin_conexion">Sin conexión</option>
+                <option value="inactivas">Inactivas</option>
+              </select>
+            </label>
           </div>
           <div id="camera-grid" class="camera-grid">
             <div class="empty-state">Cargando cámaras...</div>
@@ -76,8 +96,8 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>EVENTO</th><th>CÁMARA</th><th>CONFIANZA</th><th>FECHA</th><th>ESTADO</th><th></th></tr></thead>
-              <tbody id="alert-list"><tr><td colspan="6" class="table-empty">Cargando alertas...</td></tr></tbody>
+              <thead><tr><th>EVENTO</th><th>CÁMARA</th><th>CONFIANZA</th><th>FECHA</th><th>ESTADO</th><th>EVIDENCIA</th><th></th></tr></thead>
+              <tbody id="alert-list"><tr><td colspan="7" class="table-empty">Cargando alertas...</td></tr></tbody>
             </table>
           </div>
         </section>

@@ -1,7 +1,8 @@
 modelo:
-  ruta: modelos/yolo11s.pt
+  ruta: modelos/best.pt
   conf: 0.3
   imgsz: 960
+  workers: 4
 
 motor:
   ventana: 15

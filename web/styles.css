@@ -171,3 +171,67 @@ tbody tr:last-child td { border-bottom: 0; }
   .page-heading { gap: 8px; }
   h1 { font-size: 21px; }
 }
+
+:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+button:disabled { cursor: wait; opacity: .58; }
+.metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.metric-card { position: relative; overflow: hidden; min-height: 108px; transition: border-color .2s, transform .2s; }
+.metric-card:hover { transform: translateY(-2px); border-color: #3a4b40; }
+.metric-icon.muted { background: #303632; color: #aab4ad; }
+.live-dot.offline { background: var(--red); box-shadow: 0 0 10px #ff827770; }
+.metric-card div:nth-child(2) strong { font-variant-numeric: tabular-nums; }
+.camera-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -2px 0 14px; }
+.search-field, .filter-field { display: flex; min-height: 37px; align-items: center; gap: 9px; padding: 0 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--muted); }
+.search-field { width: min(320px, 100%); }
+.search-field > span { font-size: 19px; line-height: 1; }
+.search-field input, .filter-field select { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 11px; }
+.search-field input { width: 100%; }
+.search-field input::placeholder { color: #748078; }
+.filter-field { font-size: 10px; }
+.filter-field select { cursor: pointer; }
+.filter-field option { background: var(--panel); color: var(--text); }
+.camera-card { transition: transform .2s, border-color .2s, box-shadow .2s; }
+.camera-card:hover { transform: translateY(-2px); border-color: #3a4b40; box-shadow: 0 10px 24px #0002; }
+.camera-preview img[hidden] { display: none; }
+.preview-placeholder[hidden] { display: none; }
+.preview-placeholder { max-width: 80%; padding: 7px 10px; border: 1px solid #ffffff0d; border-radius: 7px; background: #111714b8; color: #a0aaa2; text-align: center; line-height: 1.4; }
+.camera-label { font-size: 11px; }
+.status-pill { font-size: 10px; }
+.status-pill.normal { background: #233c2c; color: var(--green); }
+.camera-info { min-height: 62px; }
+.camera-meta { min-width: 0; }
+.camera-info strong { max-width: 100%; font-size: 12px; }
+.camera-info small { font-size: 10px; }
+.camera-toggle { flex: 0 0 auto; padding: 6px 9px; border: 1px solid var(--border); border-radius: 7px; background: transparent; color: #b6c1b9; cursor: pointer; font-size: 10px; transition: border-color .2s, color .2s, background .2s; }
+.camera-toggle:hover { border-color: #66776a; background: #233c2c; color: var(--green); }
+.camera-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+.camera-delete { flex: 0 0 auto; padding: 6px 9px; border: 1px solid #553532; border-radius: 7px; background: transparent; color: #e59a91; cursor: pointer; font-size: 10px; transition: border-color .2s, color .2s, background .2s; }
+.camera-delete:hover { border-color: var(--red); background: #422a28; color: var(--red); }
+.evidence-link { color: var(--green); font-size: 10px; }
+.evidence-link:hover { text-decoration: underline; }
+.row-actions button { min-height: 28px; }
+.icon-button.is-refreshing { animation: refresh-spin .8s linear infinite; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1050px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-card { min-height: 84px; grid-template-columns: 1fr; gap: 4px; padding: 11px; }
+  .metric-icon { display: none; }
+  .metric-card div:nth-child(2) span { font-size: 10px; }
+  .metric-card div:nth-child(2) strong { font-size: 20px; }
+  .metric-caption { grid-column: 1; font-size: 9px; }
+  .camera-toolbar { align-items: stretch; }
+  .search-field { flex: 1; }
+  .filter-field { gap: 5px; padding: 0 7px; }
+  .camera-info strong { max-width: 100%; }
+}
+
+@media (max-width: 420px) {
+  .camera-toolbar { flex-direction: column; }
+  .search-field { width: 100%; }
+  .filter-field { justify-content: space-between; min-height: 35px; }
+}

@@ -91,6 +91,15 @@ def actualizar(camara_id: int, datos: CamaraActualizar, db: DB, gestor: Gestor):
     return camara
 
 
+@router.delete("/{camara_id}", status_code=204)
+def eliminar(camara_id: int, db: DB, gestor: Gestor):
+    camara = _obtener(db, camara_id)
+    gestor.eliminar(camara.id)
+    db.delete(camara)
+    db.commit()
+    return Response(status_code=204)
+
+
 @router.get("/{camara_id}/estado", response_model=EstadoCamaraSalida)
 def estado(camara_id: int, db: DB, gestor: Gestor):
     return _estado(_obtener(db, camara_id), gestor)
